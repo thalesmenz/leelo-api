@@ -14,6 +14,7 @@ import subusersRoutes from './routes/subusers';
 import anamneseQuestionsRoutes from './routes/anamneseQuestions';
 import anamneseAnswersRoutes from './routes/anamneseAnswers';
 import medicalRecordsRoutes from './routes/medicalRecords';
+import stripeRoutes from './routes/stripe';
 
 const app = express();
 
@@ -35,6 +36,7 @@ app.use('/subusers', subusersRoutes);
 app.use('/anamnese-questions', anamneseQuestionsRoutes);
 app.use('/anamnese-answers', anamneseAnswersRoutes);
 app.use('/medical-records', medicalRecordsRoutes);
+app.use('/stripe', stripeRoutes);
 
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to Leelo API' });

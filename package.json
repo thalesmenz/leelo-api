@@ -10,6 +10,7 @@
     "test": "jest"
   },
   "dependencies": {
+    "@stripe/stripe-js": "^8.1.0",
     "@supabase/supabase-js": "^2.50.0",
     "@types/stripe": "^8.0.417",
     "bcrypt": "^6.0.0",
