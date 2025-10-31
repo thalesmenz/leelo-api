@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { StripeService } from '../services/StripeService';
 import { CreatePaymentIntentDTO, UpdatePaymentIntentDTO } from '../types/stripe';
+import { AuthenticatedRequest } from '../middleware/auth';
 
 export class StripeController {
   private stripeService: StripeService;
@@ -9,13 +10,17 @@ export class StripeController {
     this.stripeService = new StripeService();
   }
 
-  createPaymentIntent = async (req: Request, res: Response) => {
+  createPaymentIntent = async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const paymentData: CreatePaymentIntentDTO = req.body;
-      if (!paymentData.user_id || !paymentData.amount) {
+      const paymentData: CreatePaymentIntentDTO = {
+        ...req.body,
+        user_id: req.user!.id // Usar user_id do token JWT
+      };
+      
+      if (!paymentData.amount) {
         return res.status(400).json({ 
           success: false, 
-          message: 'user_id e amount são obrigatórios.' 
+          message: 'amount é obrigatório.' 
         });
       }
 
@@ -52,15 +57,12 @@ export class StripeController {
     }
   };
 
-  getPaymentIntents = async (req: Request, res: Response) => {
+  getPaymentIntents = async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const filters = req.query;
-      if (!filters.user_id) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'user_id é obrigatório para buscar Payment Intents.' 
-        });
-      }
+      const filters = {
+        ...req.query,
+        user_id: req.user!.id // Usar user_id do token JWT
+      };
       const paymentIntents = await this.stripeService.getPaymentIntents(filters);
       res.status(200).json({ success: true, data: paymentIntents });
     } catch (error: any) {
@@ -71,7 +73,7 @@ export class StripeController {
     }
   };
 
-  getPaymentIntentById = async (req: Request, res: Response) => {
+  getPaymentIntentById = async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { id } = req.params;
       const paymentIntent = await this.stripeService.getPaymentIntentById(id);
@@ -81,6 +83,15 @@ export class StripeController {
           message: 'Payment Intent não encontrado.' 
         });
       }
+      
+      // Verificar se o payment intent pertence ao usuário autenticado
+      if (paymentIntent.user_id !== req.user!.id) {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Acesso negado.' 
+        });
+      }
+      
       res.status(200).json({ success: true, data: paymentIntent });
     } catch (error: any) {
       res.status(400).json({ 
@@ -90,15 +101,32 @@ export class StripeController {
     }
   };
 
-  updatePaymentIntent = async (req: Request, res: Response) => {
+  updatePaymentIntent = async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { id } = req.params;
+      
+      // Verificar se o payment intent pertence ao usuário autenticado
+      const paymentIntent = await this.stripeService.getPaymentIntentById(id);
+      if (!paymentIntent) {
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Payment Intent não encontrado.' 
+        });
+      }
+      
+      if (paymentIntent.user_id !== req.user!.id) {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Acesso negado.' 
+        });
+      }
+      
       const updateData: UpdatePaymentIntentDTO = req.body;
-      const paymentIntent = await this.stripeService.updatePaymentIntent(id, updateData);
+      const updatedPaymentIntent = await this.stripeService.updatePaymentIntent(id, updateData);
       res.status(200).json({ 
         success: true, 
         message: 'Payment Intent atualizado com sucesso!', 
-        data: paymentIntent 
+        data: updatedPaymentIntent 
       });
     } catch (error: any) {
       res.status(400).json({ 
@@ -108,9 +136,26 @@ export class StripeController {
     }
   };
 
-  deletePaymentIntent = async (req: Request, res: Response) => {
+  deletePaymentIntent = async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { id } = req.params;
+      
+      // Verificar se o payment intent pertence ao usuário autenticado
+      const paymentIntent = await this.stripeService.getPaymentIntentById(id);
+      if (!paymentIntent) {
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Payment Intent não encontrado.' 
+        });
+      }
+      
+      if (paymentIntent.user_id !== req.user!.id) {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Acesso negado.' 
+        });
+      }
+      
       await this.stripeService.deletePaymentIntent(id);
       res.status(200).json({ 
         success: true, 
@@ -124,16 +169,9 @@ export class StripeController {
     }
   };
 
-  getStatistics = async (req: Request, res: Response) => {
+  getStatistics = async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const { user_id } = req.params;
-      if (!user_id) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'user_id é obrigatório para buscar estatísticas.' 
-        });
-      }
-      const statistics = await this.stripeService.getStatistics(user_id);
+      const statistics = await this.stripeService.getStatistics(req.user!.id);
       res.status(200).json({ success: true, data: statistics });
     } catch (error: any) {
       res.status(400).json({ 
@@ -143,14 +181,14 @@ export class StripeController {
     }
   };
 
-  createCheckoutSession = async (req: Request, res: Response) => {
+  createCheckoutSession = async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const { user_id, patient_plan_id, plan_name, amount, price_id, success_url, cancel_url, billing_period } = req.body;
+      const { plan_name, amount, price_id, success_url, cancel_url, billing_period } = req.body;
 
-      if (!user_id || !plan_name) {
+      if (!plan_name) {
         return res.status(400).json({ 
           success: false, 
-          message: 'user_id e plan_name são obrigatórios.' 
+          message: 'plan_name é obrigatório.' 
         });
       }
 
@@ -170,8 +208,7 @@ export class StripeController {
 
       const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
       const session = await this.stripeService.createCheckoutSession({
-        user_id,
-        patient_plan_id,
+        user_id: req.user!.id, // Usar user_id do token JWT
         plan_name,
         amount,
         price_id,
@@ -193,9 +230,42 @@ export class StripeController {
     }
   };
 
+  verifyCheckoutSession = async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { session_id } = req.params;
+
+      if (!session_id) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'session_id é obrigatório.' 
+        });
+      }
+
+      const result = await this.stripeService.verifyCheckoutSession(session_id, req.user!.id);
+
+      if (!result.success) {
+        return res.status(400).json({ 
+          success: false, 
+          message: result.error || 'Erro ao verificar sessão.' 
+        });
+      }
+
+      res.status(200).json({ 
+        success: true, 
+        message: 'Sessão verificada com sucesso!', 
+        data: result
+      });
+    } catch (error: any) {
+      res.status(400).json({ 
+        success: false, 
+        message: error.message || 'Erro ao verificar sessão.' 
+      });
+    }
+  };
+
   handleWebhook = async (req: Request, res: Response) => {
     try {
-      const sig = req.headers['stripe-signature'];
+      const sig = req.get('stripe-signature');
       const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
       if (!sig || !endpointSecret) {
@@ -207,7 +277,11 @@ export class StripeController {
 
       // Verificar a assinatura do webhook
       const { stripe } = await import('../config/stripe');
-      const event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+      
+      // O body deve ser raw para validação do webhook
+      // Certifique-se de que o body está como string ou buffer
+      const body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+      const event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
 
       // Processar o evento
       await this.stripeService.handleWebhookEvent(event);

@@ -167,7 +167,6 @@ export class StripeService {
 
   async createCheckoutSession(data: {
     user_id: string;
-    patient_plan_id?: string;
     plan_name: string;
     amount?: number;
     price_id?: string; // Price ID da Stripe
@@ -229,13 +228,54 @@ export class StripeService {
         metadata: {
           user_id: data.user_id,
           plan_name: data.plan_name,
-          ...(data.patient_plan_id && { patient_plan_id: data.patient_plan_id }),
         },
       });
 
       return { url: session.url || '' };
     } catch (error: any) {
       throw new Error(`Erro ao criar Checkout Session: ${error.message}`);
+    }
+  }
+
+  async verifyCheckoutSession(sessionId: string, userId: string): Promise<{
+    success: boolean;
+    status?: string;
+    payment_status?: string;
+    amount_total?: number;
+    currency?: string;
+    customer_email?: string;
+    plan_name?: string;
+    subscription_id?: string;
+    error?: string;
+  }> {
+    try {
+      // Buscar sessão no Stripe
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+      // Verificar se a sessão pertence ao usuário
+      if (session.metadata?.user_id !== userId) {
+        return {
+          success: false,
+          error: 'Sessão não pertence ao usuário autenticado'
+        };
+      }
+
+      // Retornar dados da sessão
+      return {
+        success: true,
+        status: session.status || undefined,
+        payment_status: session.payment_status,
+        amount_total: session.amount_total ? session.amount_total / 100 : undefined,
+        currency: session.currency || undefined,
+        customer_email: session.customer_email || session.customer_details?.email || undefined,
+        plan_name: session.metadata?.plan_name || undefined,
+        subscription_id: session.subscription as string || undefined,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Erro ao verificar sessão'
+      };
     }
   }
 
@@ -274,33 +314,41 @@ export class StripeService {
       // Processar eventos de Checkout Session
       if (event.type === 'checkout.session.completed') {
         const session = event.data.object;
-        const { user_id, patient_plan_id } = session.metadata || {};
+        const { user_id, plan_name } = session.metadata || {};
 
-        if (user_id && patient_plan_id && session.payment_status === 'paid') {
-          // Buscar informações do plano
-          const { PatientPlanService } = await import('./PatientPlanService');
-          const patientPlanService = new PatientPlanService();
-          const plan = await patientPlanService.getPatientPlanById(patient_plan_id);
-
-          if (plan) {
-            // Criar Payment Intent no banco para manter histórico
-            const amount = session.amount_total ? session.amount_total / 100 : plan.price;
-
+        // Verificar se o pagamento foi bem-sucedido
+        if (session.payment_status === 'paid' || session.status === 'complete') {
+          const amount = session.amount_total ? session.amount_total / 100 : (session.amount_subtotal ? session.amount_subtotal / 100 : 0);
+          
+          // Buscar ou criar Payment Intent no banco
+          const paymentIntentId = session.payment_intent || `checkout_${session.id}`;
+          
+          // Verificar se já existe
+          const existingPaymentIntent = await this.getPaymentIntentByStripeId(paymentIntentId);
+          
+          if (!existingPaymentIntent) {
+            // Criar novo Payment Intent no banco
             await supabase.from('payment_intents').insert({
-              user_id,
-              stripe_payment_intent_id: session.payment_intent || `checkout_${session.id}`,
+              user_id: user_id || '',
+              stripe_payment_intent_id: paymentIntentId,
               amount,
-              currency: 'brl',
+              currency: session.currency || 'brl',
               status: 'succeeded',
               client_secret: null,
-              description: `Plano: ${plan.name}`,
+              description: plan_name || `Pagamento Stripe - Checkout Session`,
               metadata: {
-                patient_plan_id,
                 checkout_session_id: session.id,
+                ...(plan_name && { plan_name }),
+                mode: session.mode,
               }
             });
+          } else {
+            // Atualizar status se já existir
+            await this.updatePaymentIntentStatus(paymentIntentId, 'succeeded');
+          }
 
-            // Criar transação automaticamente
+          // Criar transação automaticamente
+          if (user_id && amount > 0) {
             const { TransactionService } = await import('./TransactionService');
             const transactionService = new TransactionService();
 
@@ -309,8 +357,8 @@ export class StripeService {
               date: new Date().toISOString().split('T')[0],
               type: 'entrada',
               origin: 'stripe_payment' as any,
-              origin_id: patient_plan_id,
-              description: `Pagamento Stripe - Plano: ${plan.name}`,
+              origin_id: paymentIntentId,
+              description: plan_name || `Pagamento Stripe - Checkout Session`,
               amount
             });
           }
