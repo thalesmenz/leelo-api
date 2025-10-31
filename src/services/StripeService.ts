@@ -119,7 +119,16 @@ export class StripeService {
     return paymentIntent;
   }
 
-  async updatePaymentIntentStatus(stripePaymentIntentId: string, status: string): Promise<PaymentIntent> {
+  async updatePaymentIntentStatus(stripePaymentIntentId: string, status: string): Promise<PaymentIntent | null> {
+    // Primeiro verificar se o Payment Intent existe
+    const existing = await this.getPaymentIntentByStripeId(stripePaymentIntentId);
+    
+    if (!existing) {
+      console.log(`⚠️ Payment Intent ${stripePaymentIntentId} não encontrado no banco. Ignorando atualização.`);
+      return null;
+    }
+
+    // Atualizar o status
     const { data: paymentIntent, error } = await supabase
       .from('payment_intents')
       .update({ status })
@@ -296,8 +305,13 @@ export class StripeService {
         console.log(`💰 Amount: ${paymentIntent.amount / 100}`);
 
         // Atualizar status no banco de dados
-        await this.updatePaymentIntentStatus(stripePaymentIntentId, paymentIntent.status);
-        console.log(`✅ Payment Intent atualizado no banco de dados`);
+        const updated = await this.updatePaymentIntentStatus(stripePaymentIntentId, paymentIntent.status);
+        
+        if (updated) {
+          console.log(`✅ Payment Intent atualizado no banco de dados`);
+        } else {
+          console.log(`ℹ️ Payment Intent não existe no banco (será criado via Checkout Session)`);
+        }
       }
 
       // Processar eventos de Checkout Session
