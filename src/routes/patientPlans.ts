@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { PatientPlanController } from '../controllers/PatientPlanController';
+import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
 const patientPlanController = new PatientPlanController();
@@ -10,22 +11,23 @@ function asyncHandler(fn: any) {
   };
 }
 
+// Aplicar autenticação em todas as rotas de planos de pacientes
 // Create new patient plan
-router.post('/', asyncHandler(patientPlanController.createPatientPlan));
+router.post('/', authenticateToken, asyncHandler(patientPlanController.createPatientPlan));
 
 // Get all patient plans
-router.get('/', asyncHandler(patientPlanController.getPatientPlans));
+router.get('/', authenticateToken, asyncHandler(patientPlanController.getPatientPlans));
 
 // Get patient plan by ID
-router.get('/:id', asyncHandler(patientPlanController.getPatientPlanById));
+router.get('/:id', authenticateToken, asyncHandler(patientPlanController.getPatientPlanById));
 
 // Update patient plan
-router.put('/:id', asyncHandler(patientPlanController.updatePatientPlan));
+router.put('/:id', authenticateToken, asyncHandler(patientPlanController.updatePatientPlan));
 
 // Delete patient plan
-router.delete('/:id', asyncHandler(patientPlanController.deletePatientPlan));
+router.delete('/:id', authenticateToken, asyncHandler(patientPlanController.deletePatientPlan));
 
 // Search by name
-router.get('/user/:user_id/search', asyncHandler(patientPlanController.searchByName));
+router.get('/user/:user_id/search', authenticateToken, asyncHandler(patientPlanController.searchByName));
 
 export default router; 

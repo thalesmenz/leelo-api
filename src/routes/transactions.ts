@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { TransactionController } from '../controllers/TransactionController';
+import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
 const transactionController = new TransactionController();
@@ -10,28 +11,29 @@ function asyncHandler(fn: any) {
   };
 }
 
+// Aplicar autenticação em todas as rotas de transações
 // Create new transaction
-router.post('/', asyncHandler(transactionController.createTransaction));
+router.post('/', authenticateToken, asyncHandler(transactionController.createTransaction));
 
 // Get all transactions with filters
-router.get('/', asyncHandler(transactionController.getTransactions));
+router.get('/', authenticateToken, asyncHandler(transactionController.getTransactions));
 
 // Get transaction by ID
-router.get('/:id', asyncHandler(transactionController.getTransactionById));
+router.get('/:id', authenticateToken, asyncHandler(transactionController.getTransactionById));
 
 // Update transaction
-router.put('/:id', asyncHandler(transactionController.updateTransaction));
+router.put('/:id', authenticateToken, asyncHandler(transactionController.updateTransaction));
 
 // Delete transaction
-router.delete('/:id', asyncHandler(transactionController.deleteTransaction));
+router.delete('/:id', authenticateToken, asyncHandler(transactionController.deleteTransaction));
 
 // Get statistics by user
-router.get('/user/:user_id/statistics', asyncHandler(transactionController.getStatistics));
+router.get('/user/:user_id/statistics', authenticateToken, asyncHandler(transactionController.getStatistics));
 
 // Get historical data by user
-router.get('/user/:user_id/historical', asyncHandler(transactionController.getHistoricalData));
+router.get('/user/:user_id/historical', authenticateToken, asyncHandler(transactionController.getHistoricalData));
 
 // Search by description
-router.get('/user/:user_id/search', asyncHandler(transactionController.searchByDescription));
+router.get('/user/:user_id/search', authenticateToken, asyncHandler(transactionController.searchByDescription));
 
 export default router; 

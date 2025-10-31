@@ -72,7 +72,20 @@ export class TransactionController {
   getStatistics = async (req: Request, res: Response) => {
     try {
       const { user_id } = req.params;
-      const stats = await this.transactionService.getStatistics(user_id);
+      const { month, year } = req.query;
+      
+      // Se month e year foram fornecidos, usa eles
+      let parsedMonth: number | undefined;
+      let parsedYear: number | undefined;
+      
+      if (month) {
+        parsedMonth = parseInt(month as string);
+      }
+      if (year) {
+        parsedYear = parseInt(year as string);
+      }
+      
+      const stats = await this.transactionService.getStatistics(user_id, parsedMonth, parsedYear);
       res.status(200).json({ success: true, data: stats });
     } catch (error: any) {
       res.status(400).json({ success: false, message: error.message || 'Erro ao buscar estatísticas.' });

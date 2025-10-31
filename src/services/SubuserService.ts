@@ -164,4 +164,118 @@ export class SubuserService {
 
     return parentUser;
   }
+
+  async getSubuserTransactions(subuserId: string) {
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', subuserId)
+      .order('date', { ascending: false });
+
+    if (error) {
+      throw new Error(error.message || 'Erro ao buscar transações do subusuário.');
+    }
+
+    return data || [];
+  }
+
+  async getSubuserAccountsPayable(subuserId: string) {
+    const { data, error } = await supabase
+      .from('accounts_payable')
+      .select('*')
+      .eq('user_id', subuserId)
+      .order('due_date', { ascending: false });
+
+    if (error) {
+      throw new Error(error.message || 'Erro ao buscar contas a pagar do subusuário.');
+    }
+
+    return data || [];
+  }
+
+  async getSubuserAccountsReceivable(subuserId: string) {
+    const { data, error } = await supabase
+      .from('accounts_receivable')
+      .select('*')
+      .eq('user_id', subuserId)
+      .order('due_date', { ascending: false });
+
+    if (error) {
+      throw new Error(error.message || 'Erro ao buscar contas a receber do subusuário.');
+    }
+
+    return data || [];
+  }
+
+  async getAllSubusersConsolidatedData(parentId: string) {
+    try {
+      // Buscar todos os subusuários do pai
+      const { data: subusers, error: subusersError } = await supabase
+        .from('users_accounts')
+        .select('id, name, email')
+        .eq('parent_id', parentId)
+        .eq('is_subuser', true);
+
+      if (subusersError) {
+        throw new Error(subusersError.message);
+      }
+
+      // Incluir o usuário principal também
+      const { data: parentUser, error: parentError } = await supabase
+        .from('users_accounts')
+        .select('id, name, email')
+        .eq('id', parentId)
+        .single();
+
+      if (parentError) {
+        throw new Error(parentError.message);
+      }
+
+      const allUsers = [parentUser, ...(subusers || [])];
+      const userIds = allUsers.map(user => user.id);
+
+      // Buscar todas as transações dos usuários
+      const { data: transactions, error: transactionsError } = await supabase
+        .from('transactions')
+        .select('*')
+        .in('user_id', userIds)
+        .order('date', { ascending: false });
+
+      if (transactionsError) {
+        throw new Error(transactionsError.message);
+      }
+
+      // Buscar todas as contas a receber
+      const { data: accountsReceivable, error: receivablesError } = await supabase
+        .from('accounts_receivable')
+        .select('*')
+        .in('user_id', userIds)
+        .order('due_date', { ascending: false });
+
+      if (receivablesError) {
+        throw new Error(receivablesError.message);
+      }
+
+      // Buscar todas as contas a pagar
+      const { data: accountsPayable, error: payablesError } = await supabase
+        .from('accounts_payable')
+        .select('*')
+        .in('user_id', userIds)
+        .order('due_date', { ascending: false });
+
+      if (payablesError) {
+        throw new Error(payablesError.message);
+      }
+
+      return {
+        users: allUsers,
+        transactions: transactions || [],
+        accounts_receivable: accountsReceivable || [],
+        accounts_payable: accountsPayable || []
+      };
+
+    } catch (error: any) {
+      throw new Error(error.message || 'Erro ao buscar dados consolidados');
+    }
+  }
 } 

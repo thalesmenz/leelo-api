@@ -29,12 +29,27 @@ export class MedicalRecordService {
   async getMedicalRecordById(recordId: string) {
     const { data, error } = await supabase
       .from('medical_records')
-      .select('*')
+      .select(`
+        *,
+        patients!inner(name, cpf),
+        users_accounts!inner(name)
+      `)
       .eq('id', recordId)
       .single();
     
     if (error) throw new Error(error.message || 'Erro ao buscar prontuário.');
-    return data;
+    
+    // Mapear dados para o formato esperado
+    return {
+      id: data.id,
+      patient_id: data.patient_id,
+      professional_id: data.professional_id,
+      notes: data.notes,
+      created_at: data.created_at,
+      patient_name: data.patients?.name || '',
+      patient_cpf: data.patients?.cpf || '',
+      professional_name: data.users_accounts?.name || ''
+    };
   }
 
   async getMedicalRecordsByProfessional(professionalId: string) {

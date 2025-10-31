@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { SubuserController } from '../controllers/SubuserController';
 import { SubuserService } from '../services/SubuserService';
+import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
 const subuserService = new SubuserService();
@@ -12,34 +13,35 @@ function asyncHandler(fn: any) {
   };
 }
 
+// Aplicar autenticação em todas as rotas de subusuários
 // Create new subuser
-router.post('/', asyncHandler(subuserController.createSubuser));
+router.post('/', authenticateToken, asyncHandler(subuserController.createSubuser));
 
 // Get subusers by parent ID
-router.get('/parent/:parent_id', asyncHandler(subuserController.getSubusersByParentId));
+router.get('/parent/:parent_id', authenticateToken, asyncHandler(subuserController.getSubusersByParentId));
 
 // Get subuser by ID
-router.get('/id/:id', asyncHandler(subuserController.getSubuserById));
+router.get('/id/:id', authenticateToken, asyncHandler(subuserController.getSubuserById));
 
 // Update subuser
-router.put('/id/:id', asyncHandler(subuserController.updateSubuser));
+router.put('/id/:id', authenticateToken, asyncHandler(subuserController.updateSubuser));
 
 // Delete subuser
-router.delete('/id/:id', asyncHandler(subuserController.deleteSubuser));
+router.delete('/id/:id', authenticateToken, asyncHandler(subuserController.deleteSubuser));
 
 // Get parent user of a subuser
-router.get('/:subuser_id/parent', asyncHandler(subuserController.getParentUser));
+router.get('/:subuser_id/parent', authenticateToken, asyncHandler(subuserController.getParentUser));
 
 // Get subuser transactions
-router.get('/:subuser_id/transactions', asyncHandler(subuserController.getSubuserTransactions));
+router.get('/:subuser_id/transactions', authenticateToken, asyncHandler(subuserController.getSubuserTransactions));
 
 // Get subuser accounts payable
-router.get('/:subuser_id/accounts-payable', asyncHandler(subuserController.getSubuserAccountsPayable));
+router.get('/:subuser_id/accounts-payable', authenticateToken, asyncHandler(subuserController.getSubuserAccountsPayable));
 
 // Get subuser accounts receivable
-router.get('/:subuser_id/accounts-receivable', asyncHandler(subuserController.getSubuserAccountsReceivable));
+router.get('/:subuser_id/accounts-receivable', authenticateToken, asyncHandler(subuserController.getSubuserAccountsReceivable));
 
 // Get consolidated data for all subusers
-router.get('/parent/:parent_id/consolidated', asyncHandler(subuserController.getAllSubusersConsolidatedData));
+router.get('/parent/:parent_id/consolidated', authenticateToken, asyncHandler(subuserController.getAllSubusersConsolidatedData));
 
 export default router; 

@@ -80,6 +80,24 @@ export class PatientController {
     }
   };
 
+  updatePatientById = async (req: Request, res: Response) => {
+    try {
+      const { patient_id } = req.params;
+      const patientData = req.body;
+      const updated = await this.patientService.updatePatientById(patient_id, patientData);
+      res.status(200).json({
+        success: true,
+        message: 'Paciente atualizado com sucesso!',
+        data: updated,
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        message: error.message || 'Erro ao atualizar paciente.'
+      });
+    }
+  };
+
   deletePatientByUserId = async (req: Request, res: Response) => {
     try {
       const { user_id } = req.params;

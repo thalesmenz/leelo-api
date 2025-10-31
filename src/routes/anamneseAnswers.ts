@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { AnamneseAnswerController } from '../controllers/AnamneseAnswerController';
+import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
 const anamneseAnswerController = new AnamneseAnswerController();
@@ -10,39 +11,40 @@ function asyncHandler(fn: any) {
   };
 }
 
+// Aplicar autenticação em todas as rotas de respostas de anamnese
 // CRUD básico
-router.post('/', asyncHandler(anamneseAnswerController.createAnamneseAnswer));
-router.get('/', asyncHandler(anamneseAnswerController.getAnamneseAnswers));
-router.get('/:id', asyncHandler(anamneseAnswerController.getAnamneseAnswerById));
-router.put('/:id', asyncHandler(anamneseAnswerController.updateAnamneseAnswer));
-router.delete('/:id', asyncHandler(anamneseAnswerController.deleteAnamneseAnswer));
+router.post('/', authenticateToken, asyncHandler(anamneseAnswerController.createAnamneseAnswer));
+router.get('/', authenticateToken, asyncHandler(anamneseAnswerController.getAnamneseAnswers));
+router.get('/:id', authenticateToken, asyncHandler(anamneseAnswerController.getAnamneseAnswerById));
+router.put('/:id', authenticateToken, asyncHandler(anamneseAnswerController.updateAnamneseAnswer));
+router.delete('/:id', authenticateToken, asyncHandler(anamneseAnswerController.deleteAnamneseAnswer));
 
 // Buscar por relacionamentos
-router.get('/patient/:patient_id', asyncHandler(anamneseAnswerController.getAnamneseAnswersByPatientId));
-router.get('/question/:question_id', asyncHandler(anamneseAnswerController.getAnamneseAnswersByQuestionId));
-router.get('/appointment/:appointment_id', asyncHandler(anamneseAnswerController.getAnamneseAnswersByAppointmentId));
+router.get('/patient/:patient_id', authenticateToken, asyncHandler(anamneseAnswerController.getAnamneseAnswersByPatientId));
+router.get('/question/:question_id', authenticateToken, asyncHandler(anamneseAnswerController.getAnamneseAnswersByQuestionId));
+router.get('/appointment/:appointment_id', authenticateToken, asyncHandler(anamneseAnswerController.getAnamneseAnswersByAppointmentId));
 
 // Buscar com questões (join)
-router.get('/patient/:patient_id/with-questions', asyncHandler(anamneseAnswerController.getAnamneseAnswersWithQuestions));
+router.get('/patient/:patient_id/with-questions', authenticateToken, asyncHandler(anamneseAnswerController.getAnamneseAnswersWithQuestions));
 
 // Buscar anamnese completa com respostas
-router.get('/patient/:patient_id/complete', asyncHandler(anamneseAnswerController.getAnamneseWithAnswers));
+router.get('/patient/:patient_id/complete', authenticateToken, asyncHandler(anamneseAnswerController.getAnamneseWithAnswers));
 
 // Buscar por paciente e agendamento
-router.get('/patient/:patient_id/appointment/:appointment_id', asyncHandler(anamneseAnswerController.getAnamneseAnswersByPatientAndAppointment));
+router.get('/patient/:patient_id/appointment/:appointment_id', authenticateToken, asyncHandler(anamneseAnswerController.getAnamneseAnswersByPatientAndAppointment));
 
 // Buscar anamneses por usuário
-router.get('/user/:user_id', asyncHandler(anamneseAnswerController.getAnamneseAnswersByUserId));
+router.get('/user/:user_id', authenticateToken, asyncHandler(anamneseAnswerController.getAnamneseAnswersByUserId));
 
 // Estatísticas
-router.get('/statistics', asyncHandler(anamneseAnswerController.getStatistics));
+router.get('/statistics', authenticateToken, asyncHandler(anamneseAnswerController.getStatistics));
 
 // Operações em lote
-router.post('/bulk', asyncHandler(anamneseAnswerController.bulkCreateAnamneseAnswers));
+router.post('/bulk', authenticateToken, asyncHandler(anamneseAnswerController.bulkCreateAnamneseAnswers));
 
 // Excluir por relacionamentos
-router.delete('/patient/:patient_id', asyncHandler(anamneseAnswerController.deleteAnamneseAnswersByPatientId));
-router.delete('/appointment/:appointment_id', asyncHandler(anamneseAnswerController.deleteAnamneseAnswersByAppointmentId));
+router.delete('/patient/:patient_id', authenticateToken, asyncHandler(anamneseAnswerController.deleteAnamneseAnswersByPatientId));
+router.delete('/appointment/:appointment_id', authenticateToken, asyncHandler(anamneseAnswerController.deleteAnamneseAnswersByAppointmentId));
 
 export default router;
 

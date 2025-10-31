@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { MedicalRecordController } from '../controllers/MedicalRecordController';
+import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
 const medicalRecordController = new MedicalRecordController();
@@ -10,31 +11,32 @@ function asyncHandler(fn: any) {
   };
 }
 
+// Aplicar autenticação em todas as rotas de prontuários
 // Criar novo prontuário
-router.post('/', asyncHandler(medicalRecordController.createMedicalRecord));
+router.post('/', authenticateToken, asyncHandler(medicalRecordController.createMedicalRecord));
 
 // Buscar todos os prontuários
-router.get('/', asyncHandler(medicalRecordController.getMedicalRecords));
+router.get('/', authenticateToken, asyncHandler(medicalRecordController.getMedicalRecords));
 
 // Buscar prontuário por ID
-router.get('/:id', asyncHandler(medicalRecordController.getMedicalRecordById));
+router.get('/:id', authenticateToken, asyncHandler(medicalRecordController.getMedicalRecordById));
 
 // Buscar prontuários por profissional
-router.get('/professional/:professionalId', asyncHandler(medicalRecordController.getMedicalRecordsByProfessional));
+router.get('/professional/:professionalId', authenticateToken, asyncHandler(medicalRecordController.getMedicalRecordsByProfessional));
 
 // Buscar prontuários por paciente
-router.get('/patient/:patientId', asyncHandler(medicalRecordController.getMedicalRecordsByPatient));
+router.get('/patient/:patientId', authenticateToken, asyncHandler(medicalRecordController.getMedicalRecordsByPatient));
 
 // Atualizar prontuário
-router.put('/:id', asyncHandler(medicalRecordController.updateMedicalRecord));
+router.put('/:id', authenticateToken, asyncHandler(medicalRecordController.updateMedicalRecord));
 
 // Excluir prontuário
-router.delete('/:id', asyncHandler(medicalRecordController.deleteMedicalRecord));
+router.delete('/:id', authenticateToken, asyncHandler(medicalRecordController.deleteMedicalRecord));
 
 // Buscar prontuários
-router.get('/search', asyncHandler(medicalRecordController.searchMedicalRecords));
+router.get('/search', authenticateToken, asyncHandler(medicalRecordController.searchMedicalRecords));
 
 // Buscar estatísticas dos prontuários
-router.get('/statistics/:professionalId', asyncHandler(medicalRecordController.getMedicalRecordStatistics));
+router.get('/statistics/:professionalId', authenticateToken, asyncHandler(medicalRecordController.getMedicalRecordStatistics));
 
 export default router;

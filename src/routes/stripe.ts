@@ -28,7 +28,11 @@ router.delete('/payment-intent/:id', asyncHandler(stripeController.deletePayment
 // Get statistics by user
 router.get('/user/:user_id/statistics', asyncHandler(stripeController.getStatistics));
 
+// Create checkout session
+router.post('/checkout-session', asyncHandler(stripeController.createCheckoutSession));
+
 // Stripe webhook endpoint
 router.post('/webhook', asyncHandler(stripeController.handleWebhook));
 
 export default router;
+

@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { AppointmentController } from '../controllers/AppointmentController';
+import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
 const appointmentController = new AppointmentController();
@@ -10,31 +11,32 @@ function asyncHandler(fn: any) {
   };
 }
 
+// Aplicar autenticação em todas as rotas de consultas
 // Create appointment
-router.post('/', asyncHandler(appointmentController.createAppointment));
+router.post('/', authenticateToken, asyncHandler(appointmentController.createAppointment));
 
 // Create appointment without conflict check (for private dashboard)
-router.post('/without-conflict-check', asyncHandler(appointmentController.createAppointmentWithoutConflictCheck));
+router.post('/without-conflict-check', authenticateToken, asyncHandler(appointmentController.createAppointmentWithoutConflictCheck));
 
 // Get all appointments (with optional filters)
-router.get('/', asyncHandler(appointmentController.getAppointments));
+router.get('/', authenticateToken, asyncHandler(appointmentController.getAppointments));
 
 // Get appointment by ID
-router.get('/:id', asyncHandler(appointmentController.getAppointmentById));
+router.get('/:id', authenticateToken, asyncHandler(appointmentController.getAppointmentById));
 
 // Get appointments by user ID
-router.get('/user/:user_id', asyncHandler(appointmentController.getAppointmentsByUserId));
+router.get('/user/:user_id', authenticateToken, asyncHandler(appointmentController.getAppointmentsByUserId));
 
 // Get available slots for a user on a specific date
-router.get('/user/:user_id/available-slots', asyncHandler(appointmentController.getAvailableSlots));
+router.get('/user/:user_id/available-slots', authenticateToken, asyncHandler(appointmentController.getAvailableSlots));
 
 // Update appointment
-router.put('/:id', asyncHandler(appointmentController.updateAppointment));
+router.put('/:id', authenticateToken, asyncHandler(appointmentController.updateAppointment));
 
 // Update appointment status
-router.patch('/:id/status', asyncHandler(appointmentController.updateAppointmentStatus));
+router.patch('/:id/status', authenticateToken, asyncHandler(appointmentController.updateAppointmentStatus));
 
 // Delete appointment
-router.delete('/:id', asyncHandler(appointmentController.deleteAppointment));
+router.delete('/:id', authenticateToken, asyncHandler(appointmentController.deleteAppointment));
 
 export default router; 

@@ -17,51 +17,55 @@ export const authenticateToken = async (
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
-) => {
+): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
     
     if (!authHeader) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Token de acesso não fornecido.'
       });
+      return;
     }
 
     const token = authHeader.split(' ')[1];
     
     if (!token) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Formato de token inválido.'
       });
+      return;
     }
 
     // Valida o token
     const isValid = await authService.validateToken(token);
     
     if (!isValid) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Token inválido ou expirado.'
       });
+      return;
     }
 
     // Busca dados do usuário
     const user = await authService.getCurrentUser(token);
     
     if (!user) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Usuário não encontrado.'
       });
+      return;
     }
 
     // Adiciona o usuário ao request
     req.user = user;
     next();
   } catch (error) {
-    return res.status(401).json({
+    res.status(401).json({
       success: false,
       message: 'Token inválido.'
     });
@@ -72,20 +76,22 @@ export const requireActiveUser = (
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
-) => {
+): void => {
   if (!req.user) {
-    return res.status(401).json({
+    res.status(401).json({
       success: false,
       message: 'Usuário não autenticado.'
     });
+    return;
   }
 
   // Verifica se o usuário está ativo (se implementar campo status)
   // if (req.user.status === 'inactive') {
-  //   return res.status(403).json({
+  //   res.status(403).json({
   //     success: false,
   //     message: 'Conta desativada.'
   //   });
+  //   return;
   // }
 
   next();
@@ -95,19 +101,21 @@ export const requireMainUser = (
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
-) => {
+): void => {
   if (!req.user) {
-    return res.status(401).json({
+    res.status(401).json({
       success: false,
       message: 'Usuário não autenticado.'
     });
+    return;
   }
 
   if (req.user.is_subuser) {
-    return res.status(403).json({
+    res.status(403).json({
       success: false,
       message: 'Acesso restrito a usuários principais.'
     });
+    return;
   }
 
   next();

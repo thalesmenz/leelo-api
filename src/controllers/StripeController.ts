@@ -143,6 +143,56 @@ export class StripeController {
     }
   };
 
+  createCheckoutSession = async (req: Request, res: Response) => {
+    try {
+      const { user_id, patient_plan_id, plan_name, amount, price_id, success_url, cancel_url, billing_period } = req.body;
+
+      if (!user_id || !plan_name) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'user_id e plan_name são obrigatórios.' 
+        });
+      }
+
+      if (!price_id && !amount) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'price_id ou amount são obrigatórios.' 
+        });
+      }
+
+      if (amount && amount <= 0) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Valor deve ser maior que zero.' 
+        });
+      }
+
+      const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const session = await this.stripeService.createCheckoutSession({
+        user_id,
+        patient_plan_id,
+        plan_name,
+        amount,
+        price_id,
+        billing_period,
+        success_url: success_url || `${baseUrl}/plans/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: cancel_url || `${baseUrl}/plans`,
+      });
+
+      res.status(200).json({ 
+        success: true, 
+        message: 'Checkout Session criada com sucesso!', 
+        data: { url: session.url } 
+      });
+    } catch (error: any) {
+      res.status(400).json({ 
+        success: false, 
+        message: error.message || 'Erro ao criar Checkout Session.' 
+      });
+    }
+  };
+
   handleWebhook = async (req: Request, res: Response) => {
     try {
       const sig = req.headers['stripe-signature'];
@@ -172,3 +222,4 @@ export class StripeController {
     }
   };
 }
+

@@ -46,59 +46,73 @@ export class TransactionService {
     return transaction;
   }
 
-  async getStatistics(user_id: string) {
-    // Datas
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    const startOfPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const endOfPrevMonth = new Date(now.getFullYear(), now.getMonth(), 0);
-    const today = now.toISOString().split('T')[0];
-
-    // Transações do mês atual
-    const { data: monthTransactions, error: monthError } = await supabase
+  async getStatistics(user_id: string, month?: number, year?: number) {
+    // Determinar período para filtro
+    let query = supabase
       .from('transactions')
       .select('*')
-      .eq('user_id', user_id)
-      .gte('date', startOfMonth.toISOString().split('T')[0])
-      .lte('date', endOfMonth.toISOString().split('T')[0]);
-    if (monthError) throw new Error(monthError.message);
+      .eq('user_id', user_id);
 
-    // Transações do mês anterior
-    const { data: prevMonthTransactions, error: prevMonthError } = await supabase
-      .from('transactions')
-      .select('*')
-      .eq('user_id', user_id)
-      .gte('date', startOfPrevMonth.toISOString().split('T')[0])
-      .lte('date', endOfPrevMonth.toISOString().split('T')[0]);
-    if (prevMonthError) throw new Error(prevMonthError.message);
+    // Se month e year foram fornecidos, filtrar por período específico
+    if (month && year) {
+      const startOfMonth = new Date(year, month - 1, 1);
+      const endOfMonth = new Date(year, month, 0);
+      const startOfPrevMonth = new Date(year, month - 2, 1);
+      const endOfPrevMonth = new Date(year, month - 1, 0);
+      
+      query = query
+        .gte('date', startOfMonth.toISOString().split('T')[0])
+        .lte('date', endOfMonth.toISOString().split('T')[0]);
+    }
 
-    // Transações de hoje
-    const { data: todayTransactions, error: todayError } = await supabase
-      .from('transactions')
-      .select('*')
-      .eq('user_id', user_id)
-      .eq('date', today);
-    if (todayError) throw new Error(todayError.message);
+    const { data: transactions, error } = await query;
+    
+    if (error) throw new Error(error.message);
 
-    // Cálculos mês atual
-    const receitaMes = monthTransactions?.filter(t => t.type === 'entrada').reduce((acc, t) => acc + Number(t.amount), 0) || 0;
-    const despesasMes = monthTransactions?.filter(t => t.type === 'saida').reduce((acc, t) => acc + Number(t.amount), 0) || 0;
+    // Buscar transações do mês anterior para comparação
+    let prevMonthTransactions: any[] = [];
+    if (month && year) {
+      const startOfPrevMonth = new Date(year, month - 2, 1);
+      const endOfPrevMonth = new Date(year, month - 1, 0);
+      
+      const { data: prevData, error: prevError } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', user_id)
+        .gte('date', startOfPrevMonth.toISOString().split('T')[0])
+        .lte('date', endOfPrevMonth.toISOString().split('T')[0]);
+      
+      if (!prevError) {
+        prevMonthTransactions = prevData || [];
+      }
+    }
+
+    // Calcular receitas (entradas) do mês selecionado
+    const receitaMes = transactions?.filter(t => t.type === 'entrada').reduce((acc, t) => acc + Number(t.amount), 0) || 0;
+    
+    // Calcular despesas (saídas) do mês selecionado
+    const despesasMes = transactions?.filter(t => t.type === 'saida').reduce((acc, t) => acc + Number(t.amount), 0) || 0;
+    
+    // Calcular lucro (receitas - despesas)
     const lucroMes = receitaMes - despesasMes;
 
-    // Cálculos mês anterior
-    const receitaMesAnterior = prevMonthTransactions?.filter(t => t.type === 'entrada').reduce((acc, t) => acc + Number(t.amount), 0) || 0;
-    const despesasMesAnterior = prevMonthTransactions?.filter(t => t.type === 'saida').reduce((acc, t) => acc + Number(t.amount), 0) || 0;
+    // Calcular valores do mês anterior
+    const receitaMesAnterior = prevMonthTransactions.filter(t => t.type === 'entrada').reduce((acc, t) => acc + Number(t.amount), 0);
+    const despesasMesAnterior = prevMonthTransactions.filter(t => t.type === 'saida').reduce((acc, t) => acc + Number(t.amount), 0);
     const lucroMesAnterior = receitaMesAnterior - despesasMesAnterior;
 
-    // Receita de hoje
-    const receitaHoje = todayTransactions?.filter(t => t.type === 'entrada').reduce((acc, t) => acc + Number(t.amount), 0) || 0;
-    const atendimentosHoje = todayTransactions?.filter(t => t.type === 'entrada').length || 0;
-
-    // Percentuais
+    // Calcular percentuais
     const receitaPercent = receitaMesAnterior ? ((receitaMes - receitaMesAnterior) / receitaMesAnterior) * 100 : null;
     const despesasPercent = despesasMesAnterior ? ((despesasMes - despesasMesAnterior) / despesasMesAnterior) * 100 : null;
     const lucroPercent = lucroMesAnterior ? ((lucroMes - lucroMesAnterior) / Math.abs(lucroMesAnterior)) * 100 : null;
+
+    // Receita de hoje (usando timezone do Brasil)
+    const now = new Date();
+    const brazilTime = new Date(now.getTime() - (3 * 60 * 60 * 1000)); // UTC-3 (horário de Brasília)
+    const today = brazilTime.toISOString().split('T')[0];
+    
+    const receitaHoje = transactions?.filter(t => t.type === 'entrada' && t.date.startsWith(today)).reduce((acc, t) => acc + Number(t.amount), 0) || 0;
+    const atendimentosHoje = transactions?.filter(t => t.type === 'entrada' && t.date.startsWith(today)).length || 0;
 
     return {
       receitaMes,

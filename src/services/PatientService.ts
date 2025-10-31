@@ -54,6 +54,17 @@ export class PatientService {
     return data;
   }
 
+  async updatePatientById(patientId: string, patientData: any) {
+    const { data, error } = await supabase
+      .from('patients')
+      .update(patientData)
+      .eq('id', patientId)
+      .select()
+      .single();
+    if (error) throw new Error(error.message || 'Erro ao atualizar paciente.');
+    return data;
+  }
+
   async deletePatientByUserId(userId: string) {
     const { error } = await supabase
       .from('patients')
