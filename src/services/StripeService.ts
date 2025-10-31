@@ -281,34 +281,23 @@ export class StripeService {
 
   async handleWebhookEvent(event: any): Promise<void> {
     try {
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log(`📥 Webhook recebido: ${event.type}`);
+      console.log(`🆔 Event ID: ${event.id}`);
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      
       // Processar eventos de Payment Intent
       if (event.type.startsWith('payment_intent.')) {
         const paymentIntent = event.data.object;
         const stripePaymentIntentId = paymentIntent.id;
 
+        console.log(`💳 Payment Intent ID: ${stripePaymentIntentId}`);
+        console.log(`📊 Status: ${paymentIntent.status}`);
+        console.log(`💰 Amount: ${paymentIntent.amount / 100}`);
+
         // Atualizar status no banco de dados
         await this.updatePaymentIntentStatus(stripePaymentIntentId, paymentIntent.status);
-
-        // Se o pagamento foi bem-sucedido, criar transação automaticamente
-        if (paymentIntent.status === 'succeeded') {
-          const localPaymentIntent = await this.getPaymentIntentByStripeId(stripePaymentIntentId);
-          
-          if (localPaymentIntent) {
-            // Importar TransactionService aqui para evitar dependência circular
-            const { TransactionService } = await import('./TransactionService');
-            const transactionService = new TransactionService();
-
-            await transactionService.createTransaction({
-              user_id: localPaymentIntent.user_id,
-              date: new Date().toISOString().split('T')[0],
-              type: 'entrada',
-              origin: 'stripe_payment' as any,
-              origin_id: localPaymentIntent.id,
-              description: `Pagamento Stripe - ${localPaymentIntent.description || 'Pagamento online'}`,
-              amount: localPaymentIntent.amount
-            });
-          }
-        }
+        console.log(`✅ Payment Intent atualizado no banco de dados`);
       }
 
       // Processar eventos de Checkout Session
@@ -316,9 +305,16 @@ export class StripeService {
         const session = event.data.object;
         const { user_id, plan_name } = session.metadata || {};
 
+        console.log(`🛒 Checkout Session ID: ${session.id}`);
+        console.log(`👤 User ID: ${user_id || 'N/A'}`);
+        console.log(`📦 Plan: ${plan_name || 'N/A'}`);
+        console.log(`💳 Payment Status: ${session.payment_status}`);
+        console.log(`📊 Session Status: ${session.status}`);
+
         // Verificar se o pagamento foi bem-sucedido
         if (session.payment_status === 'paid' || session.status === 'complete') {
           const amount = session.amount_total ? session.amount_total / 100 : (session.amount_subtotal ? session.amount_subtotal / 100 : 0);
+          console.log(`💰 Amount Total: R$ ${amount}`);
           
           // Buscar ou criar Payment Intent no banco
           const paymentIntentId = session.payment_intent || `checkout_${session.id}`;
@@ -328,7 +324,7 @@ export class StripeService {
           
           if (!existingPaymentIntent) {
             // Criar novo Payment Intent no banco
-            await supabase.from('payment_intents').insert({
+            const { error } = await supabase.from('payment_intents').insert({
               user_id: user_id || '',
               stripe_payment_intent_id: paymentIntentId,
               amount,
@@ -342,30 +338,26 @@ export class StripeService {
                 mode: session.mode,
               }
             });
+            
+            if (error) {
+              console.error(`❌ Erro ao criar Payment Intent:`, error);
+            } else {
+              console.log(`✅ Payment Intent criado no banco: ${paymentIntentId}`);
+            }
           } else {
             // Atualizar status se já existir
             await this.updatePaymentIntentStatus(paymentIntentId, 'succeeded');
-          }
-
-          // Criar transação automaticamente
-          if (user_id && amount > 0) {
-            const { TransactionService } = await import('./TransactionService');
-            const transactionService = new TransactionService();
-
-            await transactionService.createTransaction({
-              user_id,
-              date: new Date().toISOString().split('T')[0],
-              type: 'entrada',
-              origin: 'stripe_payment' as any,
-              origin_id: paymentIntentId,
-              description: plan_name || `Pagamento Stripe - Checkout Session`,
-              amount
-            });
+            console.log(`✅ Payment Intent atualizado no banco: ${paymentIntentId}`);
           }
         }
       }
+      
+      console.log(`✅ Webhook processado com sucesso`);
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
     } catch (error: any) {
-      console.error('Erro ao processar webhook do Stripe:', error);
+      console.error('❌ Erro ao processar webhook do Stripe:', error);
+      console.error('📋 Stack trace:', error.stack);
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
       throw error;
     }
   }

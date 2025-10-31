@@ -19,6 +19,12 @@ import stripeRoutes from './routes/stripe';
 const app = express();
 
 app.use(cors());
+
+// IMPORTANTE: Stripe webhook precisa do raw body (buffer) para verificar a assinatura
+// Deve vir ANTES do express.json()
+app.use('/stripe/webhook', express.raw({ type: 'application/json' }));
+
+// Todas as outras rotas usam JSON parsing
 app.use(express.json());
 
 // Rotas da API

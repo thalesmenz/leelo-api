@@ -268,27 +268,45 @@ export class StripeController {
       const sig = req.get('stripe-signature');
       const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-      if (!sig || !endpointSecret) {
+      if (!sig) {
+        console.error('❌ Stripe signature não encontrada no header');
         return res.status(400).json({ 
           success: false, 
-          message: 'Stripe signature ou webhook secret não encontrados.' 
+          message: 'Stripe signature não encontrada.' 
+        });
+      }
+
+      if (!endpointSecret) {
+        console.error('❌ STRIPE_WEBHOOK_SECRET não configurado');
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Webhook secret não configurado no servidor.' 
         });
       }
 
       // Verificar a assinatura do webhook
       const { stripe } = await import('../config/stripe');
       
-      // O body deve ser raw para validação do webhook
-      // Certifique-se de que o body está como string ou buffer
-      const body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-      const event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
+      // O body já vem como Buffer graças ao express.raw()
+      const event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+
+      console.log(`✅ Assinatura do webhook verificada com sucesso`);
 
       // Processar o evento
       await this.stripeService.handleWebhookEvent(event);
 
       res.status(200).json({ success: true, message: 'Webhook processado com sucesso!' });
     } catch (error: any) {
-      console.error('Erro ao processar webhook:', error);
+      console.error('❌ Erro ao processar webhook:', error);
+      
+      // Se for erro de validação de assinatura, retornar 400
+      if (error.type === 'StripeSignatureVerificationError') {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Assinatura inválida do webhook.' 
+        });
+      }
+      
       res.status(400).json({ 
         success: false, 
         message: error.message || 'Erro ao processar webhook.' 
