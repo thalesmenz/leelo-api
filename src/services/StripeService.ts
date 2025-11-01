@@ -472,6 +472,13 @@ export class StripeService {
           if (session.mode === 'subscription' && session.subscription) {
             try {
               const sub: any = await stripe.subscriptions.retrieve(session.subscription as string);
+              console.log('📊 Subscription recuperada da Stripe:', {
+                id: sub.id,
+                status: sub.status,
+                current_period_start: sub.current_period_start,
+                current_period_end: sub.current_period_end,
+                metadata: sub.metadata,
+              });
               await this.upsertSubscriptionFromStripeObject(sub, user_id, plan_name);
             } catch (e) {
               console.warn('⚠️ Falha ao sincronizar subscription no checkout.session.completed:', session.subscription);
