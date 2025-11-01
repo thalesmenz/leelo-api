@@ -19,8 +19,8 @@ export class StripeService {
     const subscriptionId: string = stripeSub.id;
     const customerId: string = typeof stripeSub.customer === 'string' ? stripeSub.customer : stripeSub.customer?.id;
     const status: string = this.mapStripeSubscriptionStatus(stripeSub.status);
-    const currentPeriodStart = stripeSub.current_period_start ? new Date(stripeSub.current_period_start * 1000).toISOString() : null;
-    const currentPeriodEnd = stripeSub.current_period_end ? new Date(stripeSub.current_period_end * 1000).toISOString() : null;
+    let currentPeriodStart = stripeSub.current_period_start ? new Date(stripeSub.current_period_start * 1000).toISOString() : null;
+    let currentPeriodEnd = stripeSub.current_period_end ? new Date(stripeSub.current_period_end * 1000).toISOString() : null;
     const cancelAtPeriodEnd = Boolean(stripeSub.cancel_at_period_end);
     const canceledAt = stripeSub.canceled_at ? new Date(stripeSub.canceled_at * 1000).toISOString() : null;
 
@@ -30,6 +30,17 @@ export class StripeService {
     if (!resolvedUserId) {
       console.warn('⚠️ Subscription sem user_id no metadata. Pulando persistência:', subscriptionId);
       return;
+    }
+
+    // Se os períodos vierem nulos no evento, buscar a assinatura completa na Stripe
+    if (!currentPeriodStart || !currentPeriodEnd) {
+      try {
+        const fresh: any = await stripe.subscriptions.retrieve(subscriptionId);
+        currentPeriodStart = fresh.current_period_start ? new Date(fresh.current_period_start * 1000).toISOString() : currentPeriodStart;
+        currentPeriodEnd = fresh.current_period_end ? new Date(fresh.current_period_end * 1000).toISOString() : currentPeriodEnd;
+      } catch (e) {
+        console.warn('⚠️ Não foi possível hidratar períodos da subscription via Stripe:', subscriptionId);
+      }
     }
 
     const { data: existing } = await supabase
