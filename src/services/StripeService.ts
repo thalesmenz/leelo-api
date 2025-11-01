@@ -32,12 +32,46 @@ export class StripeService {
       return;
     }
 
-    // Se os períodos vierem nulos no evento, buscar a assinatura completa na Stripe
+    // Stripe (novas versões) pode expor períodos no subscription_item
+    if (!currentPeriodStart || !currentPeriodEnd) {
+      const firstItem: any = stripeSub.items?.data?.[0];
+      console.log('🔍 Tentando extrair períodos de items.data[0]:', {
+        hasItems: !!stripeSub.items,
+        hasData: !!stripeSub.items?.data,
+        dataLength: stripeSub.items?.data?.length,
+        firstItem: firstItem ? {
+          id: firstItem.id,
+          current_period_start: firstItem.current_period_start,
+          current_period_end: firstItem.current_period_end,
+        } : null,
+      });
+      if (firstItem) {
+        if (!currentPeriodStart && firstItem.current_period_start) {
+          currentPeriodStart = new Date(firstItem.current_period_start * 1000).toISOString();
+          console.log('✅ current_period_start extraído:', currentPeriodStart);
+        }
+        if (!currentPeriodEnd && firstItem.current_period_end) {
+          currentPeriodEnd = new Date(firstItem.current_period_end * 1000).toISOString();
+          console.log('✅ current_period_end extraído:', currentPeriodEnd);
+        }
+      }
+    }
+
+    // Último fallback: recarregar subscription completa
     if (!currentPeriodStart || !currentPeriodEnd) {
       try {
         const fresh: any = await stripe.subscriptions.retrieve(subscriptionId);
-        currentPeriodStart = fresh.current_period_start ? new Date(fresh.current_period_start * 1000).toISOString() : currentPeriodStart;
-        currentPeriodEnd = fresh.current_period_end ? new Date(fresh.current_period_end * 1000).toISOString() : currentPeriodEnd;
+        const freshItem: any = fresh.items?.data?.[0];
+        currentPeriodStart = fresh.current_period_start
+          ? new Date(fresh.current_period_start * 1000).toISOString()
+          : freshItem?.current_period_start
+          ? new Date(freshItem.current_period_start * 1000).toISOString()
+          : currentPeriodStart;
+        currentPeriodEnd = fresh.current_period_end
+          ? new Date(fresh.current_period_end * 1000).toISOString()
+          : freshItem?.current_period_end
+          ? new Date(freshItem.current_period_end * 1000).toISOString()
+          : currentPeriodEnd;
       } catch (e) {
         console.warn('⚠️ Não foi possível hidratar períodos da subscription via Stripe:', subscriptionId);
       }
@@ -53,7 +87,12 @@ export class StripeService {
       user_id: resolvedUserId,
       stripe_subscription_id: subscriptionId,
       stripe_customer_id: customerId,
-      plan_name: planName || stripeSub.metadata?.plan_name || 'Plano',
+      plan_name:
+        planName ||
+        stripeSub.metadata?.plan_name ||
+        stripeSub.items?.data?.[0]?.price?.nickname ||
+        stripeSub.items?.data?.[0]?.plan?.nickname ||
+        'Plano',
       status,
       current_period_start: currentPeriodStart,
       current_period_end: currentPeriodEnd,
