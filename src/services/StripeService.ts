@@ -27,6 +27,11 @@ export class StripeService {
     // Tentar descobrir user_id via metadata quando não informado
     const resolvedUserId = userId || stripeSub.metadata?.user_id || null;
 
+    if (!resolvedUserId) {
+      console.warn('⚠️ Subscription sem user_id no metadata. Pulando persistência:', subscriptionId);
+      return;
+    }
+
     const { data: existing } = await supabase
       .from('subscriptions')
       .select('id')
@@ -208,9 +213,17 @@ export class StripeService {
       .update({ status })
       .eq('stripe_payment_intent_id', stripePaymentIntentId)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) throw new Error(error.message);
+    if (!paymentIntent) {
+      console.warn(`⚠️ Payment Intent ${stripePaymentIntentId} não encontrado para update. Ignorando.`);
+      // Retornar objeto fake só para manter assinatura do método
+      return {
+        id: '', user_id: '', stripe_payment_intent_id: stripePaymentIntentId,
+        amount: 0, currency: 'brl', status, created_at: new Date().toISOString(),
+      } as unknown as PaymentIntent;
+    }
     return paymentIntent;
   }
 
@@ -312,6 +325,17 @@ export class StripeService {
           user_id: data.user_id,
           plan_name: data.plan_name,
         },
+        // Garantir que a Subscription receba o metadata quando for recorrente
+        ...(mode === 'subscription'
+          ? {
+              subscription_data: {
+                metadata: {
+                  user_id: data.user_id,
+                  plan_name: data.plan_name,
+                },
+              },
+            }
+          : {}),
       });
 
       return { url: session.url || '' };
