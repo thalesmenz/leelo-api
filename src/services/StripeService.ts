@@ -467,6 +467,16 @@ export class StripeService {
             await this.updatePaymentIntentStatus(paymentIntentId, 'succeeded');
             console.log(`✅ Payment Intent atualizado no banco: ${paymentIntentId}`);
           }
+
+          // Se for assinatura, sincronizar a subscription imediatamente
+          if (session.mode === 'subscription' && session.subscription) {
+            try {
+              const sub: any = await stripe.subscriptions.retrieve(session.subscription as string);
+              await this.upsertSubscriptionFromStripeObject(sub, user_id, plan_name);
+            } catch (e) {
+              console.warn('⚠️ Falha ao sincronizar subscription no checkout.session.completed:', session.subscription);
+            }
+          }
         }
       }
 
