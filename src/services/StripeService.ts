@@ -9,6 +9,89 @@ import {
 } from '../types/stripe';
 
 export class StripeService {
+  // ===================== SUBSCRIPTIONS =====================
+  private mapStripeSubscriptionStatus(status: string): string {
+    // Mantemos o status original para simplicidade e compatibilidade com enum criado
+    return status;
+  }
+
+  private async upsertSubscriptionFromStripeObject(stripeSub: any, userId?: string, planName?: string) {
+    const subscriptionId: string = stripeSub.id;
+    const customerId: string = typeof stripeSub.customer === 'string' ? stripeSub.customer : stripeSub.customer?.id;
+    const status: string = this.mapStripeSubscriptionStatus(stripeSub.status);
+    const currentPeriodStart = stripeSub.current_period_start ? new Date(stripeSub.current_period_start * 1000).toISOString() : null;
+    const currentPeriodEnd = stripeSub.current_period_end ? new Date(stripeSub.current_period_end * 1000).toISOString() : null;
+    const cancelAtPeriodEnd = Boolean(stripeSub.cancel_at_period_end);
+    const canceledAt = stripeSub.canceled_at ? new Date(stripeSub.canceled_at * 1000).toISOString() : null;
+
+    // Tentar descobrir user_id via metadata quando não informado
+    const resolvedUserId = userId || stripeSub.metadata?.user_id || null;
+
+    const { data: existing } = await supabase
+      .from('subscriptions')
+      .select('id')
+      .eq('stripe_subscription_id', subscriptionId)
+      .maybeSingle();
+
+    const payload: any = {
+      user_id: resolvedUserId,
+      stripe_subscription_id: subscriptionId,
+      stripe_customer_id: customerId,
+      plan_name: planName || stripeSub.metadata?.plan_name || 'Plano',
+      status,
+      current_period_start: currentPeriodStart,
+      current_period_end: currentPeriodEnd,
+      cancel_at_period_end: cancelAtPeriodEnd,
+      canceled_at: canceledAt,
+      metadata: stripeSub.metadata || null,
+    };
+
+    if (existing) {
+      const { error: updError } = await supabase
+        .from('subscriptions')
+        .update(payload)
+        .eq('stripe_subscription_id', subscriptionId);
+      if (updError) {
+        console.error('❌ Erro ao atualizar subscription:', updError);
+      } else {
+        console.log('✅ Subscription atualizada no banco:', subscriptionId);
+      }
+    } else {
+      const { error: insError } = await supabase
+        .from('subscriptions')
+        .insert(payload);
+      if (insError) {
+        console.error('❌ Erro ao criar subscription:', insError);
+      } else {
+        console.log('✅ Subscription criada no banco:', subscriptionId);
+      }
+    }
+  }
+
+  async getSubscriptionByUserId(userId: string) {
+    const { data, error } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return data || null;
+  }
+
+  async cancelSubscription(userId: string) {
+    const subscription = await this.getSubscriptionByUserId(userId);
+    if (!subscription) throw new Error('Assinatura não encontrada para o usuário.');
+
+    // Cancelar na Stripe ao final do período
+    const updated = await stripe.subscriptions.update(subscription.stripe_subscription_id, {
+      cancel_at_period_end: true,
+    });
+
+    await this.upsertSubscriptionFromStripeObject(updated, userId);
+    return { cancel_at_period_end: true };
+  }
   async createPaymentIntent(data: CreatePaymentIntentDTO): Promise<PaymentResult> {
     try {
       // Criar Payment Intent no Stripe
@@ -119,16 +202,7 @@ export class StripeService {
     return paymentIntent;
   }
 
-  async updatePaymentIntentStatus(stripePaymentIntentId: string, status: string): Promise<PaymentIntent | null> {
-    // Primeiro verificar se o Payment Intent existe
-    const existing = await this.getPaymentIntentByStripeId(stripePaymentIntentId);
-    
-    if (!existing) {
-      console.log(`⚠️ Payment Intent ${stripePaymentIntentId} não encontrado no banco. Ignorando atualização.`);
-      return null;
-    }
-
-    // Atualizar o status
+  async updatePaymentIntentStatus(stripePaymentIntentId: string, status: string): Promise<PaymentIntent> {
     const { data: paymentIntent, error } = await supabase
       .from('payment_intents')
       .update({ status })
@@ -305,13 +379,8 @@ export class StripeService {
         console.log(`💰 Amount: ${paymentIntent.amount / 100}`);
 
         // Atualizar status no banco de dados
-        const updated = await this.updatePaymentIntentStatus(stripePaymentIntentId, paymentIntent.status);
-        
-        if (updated) {
-          console.log(`✅ Payment Intent atualizado no banco de dados`);
-        } else {
-          console.log(`ℹ️ Payment Intent não existe no banco (será criado via Checkout Session)`);
-        }
+        await this.updatePaymentIntentStatus(stripePaymentIntentId, paymentIntent.status);
+        console.log(`✅ Payment Intent atualizado no banco de dados`);
       }
 
       // Processar eventos de Checkout Session
@@ -363,6 +432,25 @@ export class StripeService {
             await this.updatePaymentIntentStatus(paymentIntentId, 'succeeded');
             console.log(`✅ Payment Intent atualizado no banco: ${paymentIntentId}`);
           }
+        }
+      }
+
+      // Processar eventos de Subscription (criação/atualização/cancelamento)
+      if (event.type === 'customer.subscription.created' ||
+          event.type === 'customer.subscription.updated' ||
+          event.type === 'customer.subscription.deleted') {
+        const sub = event.data.object;
+        const userId = sub.metadata?.user_id; // se foi passada adiante
+        const planName = sub.metadata?.plan_name;
+        await this.upsertSubscriptionFromStripeObject(sub, userId, planName);
+      }
+
+      // Renovação paga com sucesso (atualiza período)
+      if (event.type === 'invoice.payment_succeeded') {
+        const invoice = event.data.object;
+        if (invoice.subscription) {
+          const sub = await stripe.subscriptions.retrieve(invoice.subscription as string);
+          await this.upsertSubscriptionFromStripeObject(sub);
         }
       }
       

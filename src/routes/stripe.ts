@@ -35,6 +35,10 @@ router.post('/checkout-session', authenticateToken, asyncHandler(stripeControlle
 // Verify checkout session status (requer autenticação)
 router.get('/checkout-session/:session_id', authenticateToken, asyncHandler(stripeController.verifyCheckoutSession));
 
+// Subscription endpoints (requer autenticação)
+router.get('/subscription', authenticateToken, asyncHandler(stripeController.getCurrentSubscription));
+router.post('/subscription/cancel', authenticateToken, asyncHandler(stripeController.cancelSubscription));
+
 // Stripe webhook endpoint (não requer autenticação - usa assinatura do Stripe)
 router.post('/webhook', asyncHandler(stripeController.handleWebhook));
 

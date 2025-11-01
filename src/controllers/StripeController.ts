@@ -263,6 +263,24 @@ export class StripeController {
     }
   };
 
+  getCurrentSubscription = async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const subscription = await this.stripeService.getSubscriptionByUserId(req.user!.id);
+      res.status(200).json({ success: true, data: subscription });
+    } catch (error: any) {
+      res.status(400).json({ success: false, message: error.message || 'Erro ao buscar assinatura.' });
+    }
+  };
+
+  cancelSubscription = async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const result = await this.stripeService.cancelSubscription(req.user!.id);
+      res.status(200).json({ success: true, message: 'Assinatura será cancelada ao final do período.', data: result });
+    } catch (error: any) {
+      res.status(400).json({ success: false, message: error.message || 'Erro ao cancelar assinatura.' });
+    }
+  };
+
   handleWebhook = async (req: Request, res: Response) => {
     try {
       const sig = req.get('stripe-signature');
