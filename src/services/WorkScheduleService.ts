@@ -36,7 +36,6 @@ export class WorkScheduleService {
       has_lunch_break: s.has_lunch_break ?? s.hasLunch,
       lunch_start_time: s.lunch_start_time ?? s.lunchStart,
       lunch_end_time: s.lunch_end_time ?? s.lunchEnd,
-      slot_interval: s.slot_interval ?? 30, // padrão 30 minutos
     }));
     const { data, error } = await supabase
       .from('user_schedules')
@@ -56,7 +55,6 @@ export class WorkScheduleService {
       has_lunch_break: data.has_lunch_break ?? data.hasLunch,
       lunch_start_time: data.lunch_start_time ?? data.lunchStart,
       lunch_end_time: data.lunch_end_time ?? data.lunchEnd,
-      slot_interval: data.slot_interval ?? 60, // padrão 60 minutos
     };
     const { data: updated, error } = await supabase
       .from('user_schedules')

@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { SubuserController } from '../controllers/SubuserController';
 import { SubuserService } from '../services/SubuserService';
 import { authenticateToken } from '../middleware/auth';
+import { requireSubscription } from '../middleware/subscription';
 
 const router = Router();
 const subuserService = new SubuserService();
@@ -15,7 +16,7 @@ function asyncHandler(fn: any) {
 
 // Aplicar autenticação em todas as rotas de subusuários
 // Create new subuser
-router.post('/', authenticateToken, asyncHandler(subuserController.createSubuser));
+router.post('/', authenticateToken, requireSubscription, asyncHandler(subuserController.createSubuser));
 
 // Get subusers by parent ID
 router.get('/parent/:parent_id', authenticateToken, asyncHandler(subuserController.getSubusersByParentId));
@@ -24,10 +25,10 @@ router.get('/parent/:parent_id', authenticateToken, asyncHandler(subuserControll
 router.get('/id/:id', authenticateToken, asyncHandler(subuserController.getSubuserById));
 
 // Update subuser
-router.put('/id/:id', authenticateToken, asyncHandler(subuserController.updateSubuser));
+router.put('/id/:id', authenticateToken, requireSubscription, asyncHandler(subuserController.updateSubuser));
 
 // Delete subuser
-router.delete('/id/:id', authenticateToken, asyncHandler(subuserController.deleteSubuser));
+router.delete('/id/:id', authenticateToken, requireSubscription, asyncHandler(subuserController.deleteSubuser));
 
 // Get parent user of a subuser
 router.get('/:subuser_id/parent', authenticateToken, asyncHandler(subuserController.getParentUser));

@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { PatientPlanController } from '../controllers/PatientPlanController';
 import { authenticateToken } from '../middleware/auth';
+import { requireSubscription } from '../middleware/subscription';
 
 const router = Router();
 const patientPlanController = new PatientPlanController();
@@ -13,7 +14,7 @@ function asyncHandler(fn: any) {
 
 // Aplicar autenticação em todas as rotas de planos de pacientes
 // Create new patient plan
-router.post('/', authenticateToken, asyncHandler(patientPlanController.createPatientPlan));
+router.post('/', authenticateToken, requireSubscription, asyncHandler(patientPlanController.createPatientPlan));
 
 // Get all patient plans
 router.get('/', authenticateToken, asyncHandler(patientPlanController.getPatientPlans));
@@ -22,10 +23,10 @@ router.get('/', authenticateToken, asyncHandler(patientPlanController.getPatient
 router.get('/:id', authenticateToken, asyncHandler(patientPlanController.getPatientPlanById));
 
 // Update patient plan
-router.put('/:id', authenticateToken, asyncHandler(patientPlanController.updatePatientPlan));
+router.put('/:id', authenticateToken, requireSubscription, asyncHandler(patientPlanController.updatePatientPlan));
 
 // Delete patient plan
-router.delete('/:id', authenticateToken, asyncHandler(patientPlanController.deletePatientPlan));
+router.delete('/:id', authenticateToken, requireSubscription, asyncHandler(patientPlanController.deletePatientPlan));
 
 // Search by name
 router.get('/user/:user_id/search', authenticateToken, asyncHandler(patientPlanController.searchByName));

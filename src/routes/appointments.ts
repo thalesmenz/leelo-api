@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { AppointmentController } from '../controllers/AppointmentController';
 import { authenticateToken } from '../middleware/auth';
+import { requireSubscription } from '../middleware/subscription';
 
 const router = Router();
 const appointmentController = new AppointmentController();
@@ -13,10 +14,10 @@ function asyncHandler(fn: any) {
 
 // Aplicar autenticação em todas as rotas de consultas
 // Create appointment
-router.post('/', authenticateToken, asyncHandler(appointmentController.createAppointment));
+router.post('/', authenticateToken, requireSubscription, asyncHandler(appointmentController.createAppointment));
 
 // Create appointment without conflict check (for private dashboard)
-router.post('/without-conflict-check', authenticateToken, asyncHandler(appointmentController.createAppointmentWithoutConflictCheck));
+router.post('/without-conflict-check', authenticateToken, requireSubscription, asyncHandler(appointmentController.createAppointmentWithoutConflictCheck));
 
 // Get all appointments (with optional filters)
 router.get('/', authenticateToken, asyncHandler(appointmentController.getAppointments));
@@ -31,12 +32,12 @@ router.get('/user/:user_id', authenticateToken, asyncHandler(appointmentControll
 router.get('/user/:user_id/available-slots', authenticateToken, asyncHandler(appointmentController.getAvailableSlots));
 
 // Update appointment
-router.put('/:id', authenticateToken, asyncHandler(appointmentController.updateAppointment));
+router.put('/:id', authenticateToken, requireSubscription, asyncHandler(appointmentController.updateAppointment));
 
 // Update appointment status
-router.patch('/:id/status', authenticateToken, asyncHandler(appointmentController.updateAppointmentStatus));
+router.patch('/:id/status', authenticateToken, requireSubscription, asyncHandler(appointmentController.updateAppointmentStatus));
 
 // Delete appointment
-router.delete('/:id', authenticateToken, asyncHandler(appointmentController.deleteAppointment));
+router.delete('/:id', authenticateToken, requireSubscription, asyncHandler(appointmentController.deleteAppointment));
 
 export default router; 

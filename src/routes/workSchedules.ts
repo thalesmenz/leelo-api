@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { WorkScheduleController } from '../controllers/WorkScheduleController';
 import { authenticateToken } from '../middleware/auth';
+import { requireSubscription } from '../middleware/subscription';
 
 const router = Router();
 const controller = new WorkScheduleController();
@@ -17,10 +18,10 @@ router.get('/:user_id', authenticateToken, asyncHandler(controller.getAll.bind(c
 // Busca a configuração de um dia específico
 router.get('/:user_id/:weekday', authenticateToken, asyncHandler(controller.getDay.bind(controller)));
 // Upsert de todos os dias (array)
-router.put('/:user_id', authenticateToken, asyncHandler(controller.upsertMany.bind(controller)));
+router.put('/:user_id', authenticateToken, requireSubscription, asyncHandler(controller.upsertMany.bind(controller)));
 // Atualiza um dia específico
-router.patch('/:user_id/:weekday', authenticateToken, asyncHandler(controller.updateDay.bind(controller)));
+router.patch('/:user_id/:weekday', authenticateToken, requireSubscription, asyncHandler(controller.updateDay.bind(controller)));
 // Remove um dia específico
-router.delete('/:user_id/:weekday', authenticateToken, asyncHandler(controller.deleteDay.bind(controller)));
+router.delete('/:user_id/:weekday', authenticateToken, requireSubscription, asyncHandler(controller.deleteDay.bind(controller)));
 
 export default router; 

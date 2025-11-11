@@ -35,24 +35,12 @@ export class StripeService {
     // Stripe (novas versões) pode expor períodos no subscription_item
     if (!currentPeriodStart || !currentPeriodEnd) {
       const firstItem: any = stripeSub.items?.data?.[0];
-      console.log('🔍 Tentando extrair períodos de items.data[0]:', {
-        hasItems: !!stripeSub.items,
-        hasData: !!stripeSub.items?.data,
-        dataLength: stripeSub.items?.data?.length,
-        firstItem: firstItem ? {
-          id: firstItem.id,
-          current_period_start: firstItem.current_period_start,
-          current_period_end: firstItem.current_period_end,
-        } : null,
-      });
       if (firstItem) {
         if (!currentPeriodStart && firstItem.current_period_start) {
           currentPeriodStart = new Date(firstItem.current_period_start * 1000).toISOString();
-          console.log('✅ current_period_start extraído:', currentPeriodStart);
         }
         if (!currentPeriodEnd && firstItem.current_period_end) {
           currentPeriodEnd = new Date(firstItem.current_period_end * 1000).toISOString();
-          console.log('✅ current_period_end extraído:', currentPeriodEnd);
         }
       }
     }
@@ -267,7 +255,9 @@ export class StripeService {
 
     if (error) throw new Error(error.message);
     if (!paymentIntent) {
-      console.warn(`⚠️ Payment Intent ${stripePaymentIntentId} não encontrado para update. Ignorando.`);
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(`⚠️ Payment Intent ${stripePaymentIntentId} não encontrado para update. Ignorando.`);
+      }
       // Retornar objeto fake só para manter assinatura do método
       return {
         id: '', user_id: '', stripe_payment_intent_id: stripePaymentIntentId,
@@ -511,7 +501,6 @@ export class StripeService {
           if (session.mode === 'subscription' && session.subscription) {
             try {
               const sub: any = await stripe.subscriptions.retrieve(session.subscription as string);
-              console.log('📊 Subscription recuperada da Stripe (COMPLETA):', JSON.stringify(sub, null, 2));
               await this.upsertSubscriptionFromStripeObject(sub, user_id, plan_name);
             } catch (e) {
               console.warn('⚠️ Falha ao sincronizar subscription no checkout.session.completed:', session.subscription);

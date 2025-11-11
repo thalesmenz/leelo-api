@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { UserServiceController } from '../controllers/UserServiceController';
 import { authenticateToken } from '../middleware/auth';
+import { requireSubscription } from '../middleware/subscription';
 
 const router = Router();
 const userServiceController = new UserServiceController();
@@ -13,7 +14,7 @@ function asyncHandler(fn: any) {
 
 // Aplicar autenticação em todas as rotas de serviços
 // Create service
-router.post('/', authenticateToken, asyncHandler(userServiceController.createService));
+router.post('/', authenticateToken, requireSubscription, asyncHandler(userServiceController.createService));
 
 // Get services by user ID
 router.get('/user/:user_id', authenticateToken, asyncHandler(userServiceController.getServicesByUserId));
@@ -22,12 +23,12 @@ router.get('/user/:user_id', authenticateToken, asyncHandler(userServiceControll
 router.get('/:id', authenticateToken, asyncHandler(userServiceController.getServiceById));
 
 // Update service
-router.put('/:id', authenticateToken, asyncHandler(userServiceController.updateService));
+router.put('/:id', authenticateToken, requireSubscription, asyncHandler(userServiceController.updateService));
 
 // Toggle service status
-router.patch('/:id/toggle-status', authenticateToken, asyncHandler(userServiceController.toggleServiceStatus));
+router.patch('/:id/toggle-status', authenticateToken, requireSubscription, asyncHandler(userServiceController.toggleServiceStatus));
 
 // Delete service
-router.delete('/:id', authenticateToken, asyncHandler(userServiceController.deleteService));
+router.delete('/:id', authenticateToken, requireSubscription, asyncHandler(userServiceController.deleteService));
 
 export default router; 

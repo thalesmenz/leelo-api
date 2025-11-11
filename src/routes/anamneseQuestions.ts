@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { AnamneseQuestionController } from '../controllers/AnamneseQuestionController';
 import { authenticateToken } from '../middleware/auth';
+import { requireSubscription } from '../middleware/subscription';
 
 const router = Router();
 const anamneseQuestionController = new AnamneseQuestionController();
@@ -13,7 +14,7 @@ function asyncHandler(fn: any) {
 
 // Aplicar autenticação em todas as rotas de perguntas de anamnese
 // Create new anamnese question
-router.post('/', authenticateToken, asyncHandler(anamneseQuestionController.createAnamneseQuestion));
+router.post('/', authenticateToken, requireSubscription, asyncHandler(anamneseQuestionController.createAnamneseQuestion));
 
 // Get all anamnese questions with filters
 router.get('/', authenticateToken, asyncHandler(anamneseQuestionController.getAnamneseQuestions));
@@ -25,13 +26,13 @@ router.get('/:id', authenticateToken, asyncHandler(anamneseQuestionController.ge
 router.get('/user/:user_id', authenticateToken, asyncHandler(anamneseQuestionController.getAnamneseQuestionsByUserId));
 
 // Update anamnese question
-router.put('/:id', authenticateToken, asyncHandler(anamneseQuestionController.updateAnamneseQuestion));
+router.put('/:id', authenticateToken, requireSubscription, asyncHandler(anamneseQuestionController.updateAnamneseQuestion));
 
 // Delete anamnese question
-router.delete('/:id', authenticateToken, asyncHandler(anamneseQuestionController.deleteAnamneseQuestion));
+router.delete('/:id', authenticateToken, requireSubscription, asyncHandler(anamneseQuestionController.deleteAnamneseQuestion));
 
 // Reorder questions
-router.patch('/user/:user_id/reorder', authenticateToken, asyncHandler(anamneseQuestionController.reorderQuestions));
+router.patch('/user/:user_id/reorder', authenticateToken, requireSubscription, asyncHandler(anamneseQuestionController.reorderQuestions));
 
 // Get questions by category
 router.get('/user/:user_id/category/:category', authenticateToken, asyncHandler(anamneseQuestionController.getQuestionsByCategory));

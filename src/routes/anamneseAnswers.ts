@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { AnamneseAnswerController } from '../controllers/AnamneseAnswerController';
 import { authenticateToken } from '../middleware/auth';
+import { requireSubscription } from '../middleware/subscription';
 
 const router = Router();
 const anamneseAnswerController = new AnamneseAnswerController();
@@ -13,11 +14,11 @@ function asyncHandler(fn: any) {
 
 // Aplicar autenticação em todas as rotas de respostas de anamnese
 // CRUD básico
-router.post('/', authenticateToken, asyncHandler(anamneseAnswerController.createAnamneseAnswer));
+router.post('/', authenticateToken, requireSubscription, asyncHandler(anamneseAnswerController.createAnamneseAnswer));
 router.get('/', authenticateToken, asyncHandler(anamneseAnswerController.getAnamneseAnswers));
 router.get('/:id', authenticateToken, asyncHandler(anamneseAnswerController.getAnamneseAnswerById));
-router.put('/:id', authenticateToken, asyncHandler(anamneseAnswerController.updateAnamneseAnswer));
-router.delete('/:id', authenticateToken, asyncHandler(anamneseAnswerController.deleteAnamneseAnswer));
+router.put('/:id', authenticateToken, requireSubscription, asyncHandler(anamneseAnswerController.updateAnamneseAnswer));
+router.delete('/:id', authenticateToken, requireSubscription, asyncHandler(anamneseAnswerController.deleteAnamneseAnswer));
 
 // Buscar por relacionamentos
 router.get('/patient/:patient_id', authenticateToken, asyncHandler(anamneseAnswerController.getAnamneseAnswersByPatientId));
@@ -40,11 +41,11 @@ router.get('/user/:user_id', authenticateToken, asyncHandler(anamneseAnswerContr
 router.get('/statistics', authenticateToken, asyncHandler(anamneseAnswerController.getStatistics));
 
 // Operações em lote
-router.post('/bulk', authenticateToken, asyncHandler(anamneseAnswerController.bulkCreateAnamneseAnswers));
+router.post('/bulk', authenticateToken, requireSubscription, asyncHandler(anamneseAnswerController.bulkCreateAnamneseAnswers));
 
 // Excluir por relacionamentos
-router.delete('/patient/:patient_id', authenticateToken, asyncHandler(anamneseAnswerController.deleteAnamneseAnswersByPatientId));
-router.delete('/appointment/:appointment_id', authenticateToken, asyncHandler(anamneseAnswerController.deleteAnamneseAnswersByAppointmentId));
+router.delete('/patient/:patient_id', authenticateToken, requireSubscription, asyncHandler(anamneseAnswerController.deleteAnamneseAnswersByPatientId));
+router.delete('/appointment/:appointment_id', authenticateToken, requireSubscription, asyncHandler(anamneseAnswerController.deleteAnamneseAnswersByAppointmentId));
 
 export default router;
 

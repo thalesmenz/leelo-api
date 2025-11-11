@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { MedicalRecordController } from '../controllers/MedicalRecordController';
 import { authenticateToken } from '../middleware/auth';
+import { requireSubscription } from '../middleware/subscription';
 
 const router = Router();
 const medicalRecordController = new MedicalRecordController();
@@ -13,7 +14,7 @@ function asyncHandler(fn: any) {
 
 // Aplicar autenticação em todas as rotas de prontuários
 // Criar novo prontuário
-router.post('/', authenticateToken, asyncHandler(medicalRecordController.createMedicalRecord));
+router.post('/', authenticateToken, requireSubscription, asyncHandler(medicalRecordController.createMedicalRecord));
 
 // Buscar todos os prontuários
 router.get('/', authenticateToken, asyncHandler(medicalRecordController.getMedicalRecords));
@@ -28,10 +29,10 @@ router.get('/professional/:professionalId', authenticateToken, asyncHandler(medi
 router.get('/patient/:patientId', authenticateToken, asyncHandler(medicalRecordController.getMedicalRecordsByPatient));
 
 // Atualizar prontuário
-router.put('/:id', authenticateToken, asyncHandler(medicalRecordController.updateMedicalRecord));
+router.put('/:id', authenticateToken, requireSubscription, asyncHandler(medicalRecordController.updateMedicalRecord));
 
 // Excluir prontuário
-router.delete('/:id', authenticateToken, asyncHandler(medicalRecordController.deleteMedicalRecord));
+router.delete('/:id', authenticateToken, requireSubscription, asyncHandler(medicalRecordController.deleteMedicalRecord));
 
 // Buscar prontuários
 router.get('/search', authenticateToken, asyncHandler(medicalRecordController.searchMedicalRecords));
